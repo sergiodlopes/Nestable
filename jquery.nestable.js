@@ -135,21 +135,21 @@
         serialize: function() {
             var data,
                 depth = 0,
-                list  = this;
-            step = function(level, depth) {
-                var array = [],
-                    items = level.children(list.options.itemNodeName);
-                items.each(function () {
-                    var li = $(this),
-                        item = $.extend({}, li.data()),
-                        sub = li.children(list.options.listNodeName);
-                    if (sub.length) {
-                        item.children = step(sub, depth + 1);
-                    }
-                    array.push(item);
-                });
-                return array;
-            };
+                list  = this,
+                step = function(level, depth) {
+                    var array = [],
+                        items = level.children(list.options.itemNodeName);
+                    items.each(function () {
+                        var li = $(this),
+                            item = $.extend({}, li.data()),
+                            sub = li.children(list.options.listNodeName);
+                        if (sub.length) {
+                            item.children = step(sub, depth + 1);
+                        }
+                        array.push(item);
+                    });
+                    return array;
+                };
             data = step(list.el.find(list.options.listNodeName).first(), depth);
             return data;
         },
@@ -271,7 +271,9 @@
 
         dragStop: function(e) {
             var el = this.dragEl.children(this.options.itemNodeName).first();
-            el[0].parentNode.removeChild(el[0]);
+            if (typeof el[0] !== 'undefined') {
+                el[0].parentNode.removeChild(el[0]);
+            }
             this.placeEl.replaceWith(el);
 
             this.dragEl.remove();
