@@ -43,7 +43,9 @@
         collapseBtnHTML: '<button data-action="collapse" type="button">Collapse</button>',
         group: 0,
         maxDepth: 5,
-        threshold: 20
+        threshold: 20,
+        cursor: 'move',
+        flattenTree: false
     };
 
     function Plugin(element, options) {
@@ -133,24 +135,32 @@
         },
 
         serialize: function() {
-            var data,
+            var data = [],
                 depth = 0,
+                parent_id = 0,
                 list  = this,
-                step = function(level, depth) {
+                step = function(level, depth, parent_id) {
                     var array = [],
                         items = level.children(list.options.itemNodeName);
                     items.each(function () {
                         var li = $(this),
-                            item = $.extend({}, li.data()),
+                            children = null,
+                            parent = (list.options.flattenTree ? {parent_id: parent_id} : {}),
+                            item = $.extend(parent, li.data()),
                             sub = li.children(list.options.listNodeName);
-                        if (sub.length) {
-                            item.children = step(sub, depth + 1);
-                        }
                         array.push(item);
+                        if (sub.length) {
+                            children = step(sub, depth + 1, li.data('id'));
+                            if (list.options.flattenTree) {
+                                array = array.concat(children); 
+                            } else {
+                                item.children = children;
+                            }
+                        }
                     });
                     return array;
                 };
-            data = step(list.el.find(list.options.listNodeName).first(), depth);
+            data = step(list.el.find(list.options.listNodeName).first(), depth, parent_id);
             return data;
         },
 
@@ -235,6 +245,7 @@
         dragStart: function(e) {
             var mouse = this.mouse,
                 target = $(e.target),
+                $body = $(document.body),
                 dragItem = target.closest(this.options.itemNodeName);
 
             this.placeEl.css('height', dragItem.height());
@@ -253,7 +264,8 @@
             dragItem[0].parentNode.removeChild(dragItem[0]);
             dragItem.appendTo(this.dragEl);
 
-            $(document.body).append(this.dragEl);
+            this._bodyCursor = $body.css('cursor');
+            $body.append(this.dragEl).css('cursor', this.options.cursor);
             this.dragEl.css({
                 'left': e.pageX - mouse.offsetX,
                 'top': e.pageY - mouse.offsetY
@@ -276,6 +288,9 @@
             }
             this.placeEl.replaceWith(el);
 
+            $(document.body).css('cursor', this._bodyCursor);
+            delete this._bodyCursor;
+            
             this.dragEl.remove();
             this.el.trigger('change');
             if (this.hasNewRoot) {
@@ -428,7 +443,7 @@
                 if (!parent.children().length) {
                     this.unsetParent(parent.parent());
                 }
-                if (!this.dragRootEl.find(opt.itemNodeName).length) {
+                if (!this.dragRootEl.find(opt.itemNodeName).length && !this.dragRootEl.find(opt.emptyClass).length) {
                     this.dragRootEl.append('<div class="' + opt.emptyClass + '"/>');
                 }
                 // parent root list has changed

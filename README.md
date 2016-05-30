@@ -61,6 +61,10 @@ The serialised JSON for the example above would be:
 
     [{"id":1},{"id":2},{"id":3,"children":[{"id":4},{"id":5}]}]
 
+If `flattenTree` is set to true, the serialised JSON for the example above would be (this format is useful when trying to save into a database):
+
+    [{"parent_id":0,"id":1},{"parent_id":0,"id":2},{"parent_id":0,"id":3},{"parent_id":3,"id":4},{"parent_id":3,"id":5}]
+
 ### Configuration
 
 You can change the follow options:
@@ -82,6 +86,7 @@ These advanced config options are also available:
 * `emptyClass` The class used for empty list placeholder elements (default `'dd-empty'`)
 * `expandBtnHTML` The HTML text used to generate a list item expand button (default `'<button data-action="expand">Expand></button>'`)
 * `collapseBtnHTML` The HTML text used to generate a list item collapse button (default `'<button data-action="collapse">Collapse</button>'`)
+* `flattenTree` If true data object will be flatten (no depth) and have `parent_id` property instead of `children` (default `'false'`)
 
 **Inspect the [Nestable Demo](http://dbushell.github.com/Nestable/) for guidance.**
 
