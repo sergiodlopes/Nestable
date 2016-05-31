@@ -28,6 +28,7 @@
     })();
 
     var defaults = {
+        data: null,
         listNodeName: 'ol',
         itemNodeName: 'li',
         rootClass: 'dd',
@@ -45,13 +46,21 @@
         maxDepth: 5,
         threshold: 20,
         cursor: 'move',
-        flattenTree: false
+        flattenTree: false,
+        item: function (item, $li, $handle) {
+            if (item.id) {
+                $li.attr('data-id', item.id);
+                $handle.text(item.id);
+            }
+            return $li;
+        }
     };
 
     function Plugin(element, options) {
         this.w = $(document);
         this.el = $(element);
-        this.options = $.extend({}, defaults, options);
+        defaults.rootClass = this.el.attr('class');
+        this.options = $.extend({}, defaults, options, this.el.data());
         this.init();
     }
 
@@ -59,6 +68,7 @@
 
         init: function() {
             var list = this;
+            list._data();
 
             list.reset();
 
@@ -131,7 +141,41 @@
             list.el.on('mousedown', onStartEvent);
             list.w.on('mousemove', onMoveEvent);
             list.w.on('mouseup', onEndEvent);
-
+            list.el.trigger('init');
+        },
+        // JSON data to create lists on init
+        _data: function() {
+            var _this = this,
+                html = '',
+                data = this.options.data;
+            if (data) {
+                var $ol = $('<ol>').addClass(this.options.listClass);
+                $.each(data, function (i, item) {
+                    $ol.append(_this._buildItem(item));
+                });            
+                this.el.append($ol).attr('data-data', null);
+            }
+        },
+        
+        _buildItem: function (item) {        
+            var _this = this,
+                $item = $('<li>')
+                    .addClass(_this.options.itemClass),
+                $handle = $('<div>')
+                    .addClass(_this.options.handleClass)
+                    .appendTo($item);
+                
+            _this.options.item(item, $item, $handle);
+        
+            if (Object.keys(item.children).length > 0) {        
+                var $ol = $('<ol>')
+                    .addClass(this.options.listClass)
+                    .appendTo($item);
+                $.each(item.children, function (i, subitem) {
+                    $ol.append(_this._buildItem(subitem));
+                });
+            }        
+            return $item;
         },
 
         serialize: function() {
@@ -167,7 +211,7 @@
         serialise: function() {
             return this.serialize();
         },
-
+        
         reset: function() {
             this.mouse = {
                 offsetX: 0,
