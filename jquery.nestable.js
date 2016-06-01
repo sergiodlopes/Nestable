@@ -145,7 +145,8 @@
             list.w.on('mousemove', onMoveEvent);
             list.w.on('mouseup', onEndEvent);
         },
-        
+
+        // Add item
         add: function(item) {
             var $item = $('<li>')
                     .addClass(this.options.itemClass),
@@ -171,7 +172,15 @@
             this.reset();
             this.el.trigger('added', [item, $item]).trigger('change');
         },
-        
+
+        // Remove item
+        remove: function(item) {
+            $(item).remove();
+            this.reset();
+            this.el.trigger('removed').trigger('change');
+        },
+
+        // Create list from given data
         _data: function() {
             var _this = this,
                 data = this.options.data;
@@ -184,7 +193,8 @@
                 this.options.list($ol);
             }
         },
-        
+
+        // Create items and children
         _buildItem: function (item) {        
             var _this = this,
                 $item = $('<li>')
