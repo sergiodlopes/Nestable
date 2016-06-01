@@ -28,7 +28,6 @@
     })();
 
     var defaults = {
-        data: null,
         listNodeName: 'ol',
         itemNodeName: 'li',
         rootClass: 'dd',
@@ -47,13 +46,16 @@
         threshold: 20,
         cursor: 'move',
         flattenTree: false,
+        data: null,
         item: function (item, $li, $handle) {
             if (item.id) {
                 $li.attr('data-id', item.id);
                 $handle.text(item.id);
             }
             return $li;
-        }
+        },
+        list: $.noop,
+        init: $.noop
     };
 
     function Plugin(element, options) {
@@ -62,6 +64,7 @@
         defaults.rootClass = this.el.attr('class');
         this.options = $.extend({}, defaults, options, this.el.data());
         this.init();
+        this.options.init(this.options);
     }
 
     Plugin.prototype = {
@@ -86,7 +89,7 @@
                 }
                 var target = $(e.currentTarget),
                     action = target.data('action'),
-                    item   = target.parent(list.options.itemNodeName);
+                    item = target.parent(list.options.itemNodeName);
                 if (action === 'collapse') {
                     list.collapseItem(item);
                 }
@@ -141,19 +144,44 @@
             list.el.on('mousedown', onStartEvent);
             list.w.on('mousemove', onMoveEvent);
             list.w.on('mouseup', onEndEvent);
-            list.el.trigger('init');
         },
-        // JSON data to create lists on init
+        
+        add: function(item) {
+            var $item = $('<li>')
+                    .addClass(this.options.itemClass),
+                $handle = $('<div>')
+                    .addClass(this.options.handleClass)
+                    .appendTo($item),
+                parent_id = (item.parent_id ? item.parent_id : 0),
+                $parent,
+                $list;
+                
+            this.options.item(item, $item, $handle);
+            
+            if (parent_id > 0) {
+                $parent = this.el.find('li[data-id="' + parent_id + '"]');
+                $list = $parent.find('> .' + this.options.listClass);
+                if ($list.length === 0) {
+                    $list = this._createListEl().appendTo($parent);
+                }
+            } else {
+                $list = this._getRootList();
+            }
+            $list.append($item);
+            this.reset();
+            this.el.trigger('added', [item, $item]).trigger('change');
+        },
+        
         _data: function() {
             var _this = this,
-                html = '',
                 data = this.options.data;
             if (data) {
-                var $ol = $('<ol>').addClass(this.options.listClass);
+                var $ol = this._getRootList();
                 $.each(data, function (i, item) {
                     $ol.append(_this._buildItem(item));
                 });            
                 this.el.append($ol).attr('data-data', null);
+                this.options.list($ol);
             }
         },
         
@@ -167,17 +195,29 @@
                 
             _this.options.item(item, $item, $handle);
         
-            if (Object.keys(item.children).length > 0) {        
-                var $ol = $('<ol>')
-                    .addClass(this.options.listClass)
+            if (item.children && Object.keys(item.children).length > 0) {        
+                var $ol = this._createListEl()
                     .appendTo($item);
                 $.each(item.children, function (i, subitem) {
                     $ol.append(_this._buildItem(subitem));
                 });
+                _this.options.list($ol);
             }        
             return $item;
         },
-
+        
+        _getRootList: function() {
+            var $ol = this.el.find('.' + this.options.listClass).eq(0);
+            if ($ol.length === 0) {
+                $ol = this._createListEl();
+            }
+            return $ol;
+        },
+        
+        _createListEl: function() {
+            return $('<ol>').addClass(this.options.listClass);
+        },
+        
         serialize: function() {
             var data = [],
                 depth = 0,
@@ -500,7 +540,7 @@
 
     };
 
-    $.fn.nestable = function(params) {
+    $.fn.nestable = function(params, arg) {
         var lists = this,
             retval = this;
 
@@ -512,11 +552,10 @@
                 $(this).data("nestable-id", new Date().getTime());
             } else {
                 if (typeof params === 'string' && typeof plugin[params] === 'function') {
-                    retval = plugin[params]();
+                    retval = plugin[params](arg);
                 }
             }
         });
-
         return retval || lists;
     };
 
