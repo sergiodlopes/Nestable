@@ -80,21 +80,21 @@
             list.placeEl = $('<div class="' + list.options.placeClass + '"/>');
 
             $.each(this.el.find(list.options.itemNodeName), function(k, el) {
-                list.setParent($(el));
+                list.setParent($(this));
             });
 
             list.el.on('click', 'button', function(e) {
                 if (list.dragEl) {
                     return;
                 }
-                var target = $(e.currentTarget),
-                    action = target.data('action'),
-                    item = target.parent(list.options.itemNodeName);
+                var $target = $(e.currentTarget),
+                    action = $target.data('action'),
+                    $item = $target.parent(list.options.itemNodeName);
                 if (action === 'collapse') {
-                    list.collapseItem(item);
+                    list.collapseItem($item);
                 }
                 if (action === 'expand') {
-                    list.expandItem(item);
+                    list.expandItem($item);
                 }
             });
 
@@ -148,34 +148,41 @@
 
         // Add item
         add: function(item) {
-            var $item = $('<li>')
+            var $li = $('<li>')
                     .addClass(this.options.itemClass),
                 $handle = $('<div>')
                     .addClass(this.options.handleClass)
-                    .appendTo($item),
+                    .appendTo($li),
                 parent_id = (item.parent_id ? item.parent_id : 0),
                 $parent,
                 $list;
                 
-            this.options.item(item, $item, $handle);
+            this.options.item(item, $li, $handle);
             
             if (parent_id > 0) {
                 $parent = this.el.find('li[data-id="' + parent_id + '"]');
                 $list = $parent.find('> .' + this.options.listClass);
                 if ($list.length === 0) {
                     $list = this._createListEl().appendTo($parent);
-                }
+                }                
+                this.expandItem($parent);
+                this.setParent($parent);
             } else {
                 $list = this._getRootList();
             }
-            $list.append($item);
+            $list.append($li);
             this.reset();
-            this.el.trigger('added', [item, $item]).trigger('change');
+            this.el.trigger('added', [item, $li, $list]).trigger('change');
         },
 
         // Remove item
-        remove: function(item) {
-            $(item).remove();
+        remove: function(li) {
+            var $li = $(li),
+                $parent = $li.parents('.' + this.options.itemClass).eq(0);
+            $li.remove();
+            if ($parent.find('.' + this.options.itemClass).length === 0) {
+                this.unsetParent($parent);
+            }
             this.reset();
             this.el.trigger('removed').trigger('change');
         },
@@ -184,7 +191,7 @@
         _data: function() {
             var _this = this,
                 data = this.options.data;
-            if (data) {
+            if (data && Object.keys(data).length > 0) {
                 var $ol = this._getRootList();
                 $.each(data, function (i, item) {
                     $ol.append(_this._buildItem(item));
@@ -212,7 +219,7 @@
                     $ol.append(_this._buildItem(subitem));
                 });
                 _this.options.list($ol);
-            }        
+            }
             return $item;
         },
         
@@ -235,13 +242,18 @@
                 list  = this,
                 step = function(level, depth, parent_id) {
                     var array = [],
-                        items = level.children(list.options.itemNodeName);
-                    items.each(function () {
+                        items = level.children('.' + list.options.itemClass);
+                        
+                    items.each(function (position) {
                         var li = $(this),
                             children = null,
                             parent = (list.options.flattenTree ? {parent_id: parent_id} : {}),
                             item = $.extend(parent, li.data()),
                             sub = li.children(list.options.listNodeName);
+                            
+                        item = $.extend({
+                            position: (li.index('.' + list.options.itemClass) + 1)
+                        }, item);
                         array.push(item);
                         if (sub.length) {
                             children = step(sub, depth + 1, li.data('id'));
